@@ -1,0 +1,430 @@
+######################################################################################################################################################################################################
+## heimdall #########################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+version: '3'
+
+services:
+  heimdall:
+    image: linuxserver/heimdall
+    container_name: heimdall
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Colombo # Set this to your timezone
+      - HEIMDALL_PORT=9089 # Set the port that Heimdall will listen on
+    volumes:
+      - /var/heimdall/config:/config
+    ports:
+      - 9089:80 # Map the container's port to the host machine's port
+
+
+
+
+######################################################################################################################################################################################################
+## portainer #########################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+version: '3'
+
+services:
+  portainer:
+    image: portainer/portainer-ce
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+volumes:
+  portainer_data:
+
+
+
+######################################################################################################################################################################################################
+## File Browser  ## admin admin ######################################################################################################################################################################
+######################################################################################################################################################################################################
+
+mkdir filebrowser
+cd filebrowser
+touch docker-compose.yml
+nano docker-compose.yml # copy the contents from below
+touch filebrowser.db
+docker-compose up -d --force-recreate
+
+version: '3'
+services:
+  file-browser:
+    image: filebrowser/filebrowser
+    container_name: file-browser
+    user: 1001:1001  #your uid
+    ports:
+      - 5001:80
+      - 3389:8080
+    volumes:
+      - /home/sam/jdown
+      - /home/sam/dockers/filebrowser.db/database.db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+
+# simplified
+
+version: "3"
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    volumes:
+      - /home/sam/jdown:/srv          ## add :/srv end of the path
+    ports:
+      - 5001:80
+    restart: unless-stopped
+
+
+
+
+
+
+######################################################################################################################################################################################################
+## Guacamole #########################################################################################################################################################################################
+######################################################################################################################################################################################################
+version "3"
+
+
+
+
+version "3"
+  guacamole:
+    container_name: guacamole
+    image: guacamole/guacamole
+    restart: always
+    networks:
+      - traefik_proxy
+    ports:
+      - "5001:8080"
+    volumes:
+      - ${USERDIR}/docker/shared:/shared
+
+
+
+######################################################################################################################################################################################################
+## NGINX-PROXY ######################################################################################################################################################################################
+######################################################################################################################################################################################################
+
+
+
+version: '3'
+
+services:
+  app:
+    image: 'jc21/nginx-proxy-manager:latest' # Use nginx-proxy-manager image
+    restart: unless-stopped # Always restart app service unless stopped intentionally
+    ports:
+      - '82:82' # Public HTTP Port
+      - '443:443' # Public HTTPS Port
+      - '83:83' # Admin Web Port
+    environment:
+      DISABLE_IPV6: 'true' # Disable IPv6 (useful for localhost testing)
+    volumes:
+      - './data:/data' # Mount data directory as volume
+      - './letsencrypt:/etc/letsencrypt' # Mount letsencrypt directory as volume
+    depends_on:
+      - db # Depend on the db service
+
+  db:
+    image: 'jc21/mariadb-aria:latest' # Use mariadb-aria image
+    restart: unless-stopped # Always restart db service unless stopped intentionally
+    environment:
+      MYSQL_ROOT_PASSWORD: 'gc6xFKdaB5GpCXc' # Blank root password
+      MYSQL_DATABASE: 'npm' # NPM database name
+      MYSQL_USER: 'ezio' # Blank MySQL user
+      MYSQL_PASSWORD: 'gc6xFKdaB5GpCXc' # Blank MySQL password
+    volumes:
+      - './mysql:/var/lib/mysql' # Mount mysql directory as volume
+
+
+
+## NGIINX ##
+
+
+
+{
+  "database": {
+        "engine": "mysql",
+        "host": "db",
+        "name": "npm",
+        "user": "npm",
+        "password": "npm",
+        "port": 3306
+  }
+}
+
+######################################################################################################################################################################################################
+## TRAEFIK  - LABELS ##############################################################################################################################################################
+######################################################################################################################################################################################################
+
+# web.slvr.site
+# heimdall.slvr.site
+# traefik.slvr.site
+# portainer.slvr.site
+
+
+## TEMPLATE ##
+    labels:
+      - "traefik.enable=true" 
+      - "traefik.http.routers.x.entrypoints=http" 
+      - "traefik.http.routers.x.entrypoints=websecure" 
+      - "traefik.http.routers.x.rule=Host(`x.slvr.site`)" 
+      - "traefik.http.routers.x-secure.tls=true" 
+      - "traefik.http.routers.x-secure.tls.certresolver=cloudflare" #staging #production
+
+
+traefik.enable = true
+traefik.http.routers.nginx.entrypoints = web, websecure
+traefik.http.routers.nginx.rule = Host(`web.slvr.site`)
+traefik.http.routers.nginx.tls = true
+traefik.http.routers.nginx.tls.certresolver = production
+
+
+
+
+
+######################################################################################################################################################################################################
+## TRAEFIK  - TECHNO TIM ## traefik.yml ##############################################################################################################################################################
+######################################################################################################################################################################################################
+
+
+api:
+  dashboard: true
+  debug: true
+entryPoints:
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
+  https:
+    address: ":443"
+serversTransport:
+  insecureSkipVerify: true
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    filename: /config.yml
+certificatesResolvers:
+  cloudflare:
+    acme:
+      email: uchith.cm@gmail.com
+      storage: acme.json
+      dnsChallenge:
+        provider: cloudflare
+        #disablePropagationCheck: true # uncomment this if you have issues pulling certificates through cloudflare, By setting this flag to true disables the need to wait for the propagation of the TXT record to all authoritative name servers.
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
+
+######################################################################################################################################################################################################
+## TRAEFIK  - TECHNO TIM ## docker-compose.yml ######################################################################################################################################################
+#####################################################################################################################################################################################################
+
+version: '3'
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - CF_API_EMAIL=user@example.com
+      - CF_DNS_API_TOKEN=YOUR_API_TOKEN
+      # - CF_API_KEY=YOUR_API_KEY
+      # be sure to use the correct one depending on if you are using a token or key
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /home/ec2-user/traefik/data/traefik.yml:/traefik.yml:ro
+      - /home/ec2-user/traefik/data/acme.json:/acme.json
+      - /home/ec2-user/traefik/data/config.yml:/config.yml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.x.rule=Host(`x.slvr.site`)"
+      - "traefik.http.routers.x.entrypoints=http"
+      - "traefik.http.routers.traefik-secure.entrypoints=https"
+      - "traefik.http.routers.traefik-secure.rule=Host(`x.slvr.site`)"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=x.slvr.site"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.slvr.site"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+#      - "traefik.http.middlewares.traefik-auth.basicauth.users=USER:BASIC_AUTH_PASSWORD"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+networks:
+  proxy:
+    external: true
+
+
+######################################################################################################################################################################################################
+## CHRISTAIN LEMPA - TRAEFIK CONFIG ##   sudo vim /etc/traefik/traefik.yml###########################################################################################################################
+######################################################################################################################################################################################################
+
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false  # true by default
+
+# (Optional) Log information
+# ---
+# log:
+#  level: ERROR  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+#   format: common  # common, json, logfmt
+#   filePath: /var/log/traefik/traefik.log
+
+# (Optional) Accesslog
+# ---
+# accesslog:
+#   format: common  # common, json, logfmt
+#   filePath: /var/log/traefik/access.log
+
+# (Optional) Enable API and Dashboard
+# ---
+api:
+  dashboard: true  # true by default
+  insecure: true  # Don't do this in production!
+
+# Entry Points configuration
+# ---
+entryPoints:
+  web:
+    address: :80
+    # (Optional) Redirect to HTTPS
+    # ---
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  websecure:
+    address: :443
+# Configure your CertificateResolver here...
+# ---
+certificatesResolvers:
+  staging:
+    acme:
+      email: uchith.cm@gmail.com
+      storage: /etc/traefik/certs/acme.json
+      # You can use DNS challenge instead of HTTP challenge for wildcard certificates
+      # Note that you'll need to configure credentials as well.
+      # dnsChallenge:
+      #   provider: some_dns_provider_name
+      #   delayBeforeCheck: 0
+      #   resolvers:
+      #     - "1.1.1.1:53"
+      #     - "8.8.8.8:53"
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      httpChallenge:
+        entryPoint: web
+  production:
+    acme:
+      email: uchith.cm@gmail.com
+      storage: /etc/traefik/certs/acme.json
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      httpChallenge:
+        entryPoint: web
+
+# (Optional) Overwrite Default Certificates
+# tls:
+#   stores:
+#     default:
+#       defaultCertificate:
+#         certFile: /etc/traefik/certs/cert.pem
+#         keyFile: /etc/traefik/certs/cert-key.pem
+# (Optional) Disable TLS version 1.0 and 1.1
+#   options:
+#     default:
+#       minVersion: VersionTLS12
+
+providers:
+  docker:
+    exposedByDefault: true  # Default is true
+  file:
+    # watch for dynamic configuration changes
+    directory: /etc/traefik
+    watch: true
+
+
+sudo -s
+
+######################################################################################################################################################################################################
+## CHRISTAIN LEMPA - TRAEFIK DOCKER COMPOSE ##
+######################################################################################################################################################################################################
+
+version: '3' # Specify the Compose file format version
+
+volumes:
+  traefik-ssl-certs: # Define a named volume for storing SSL certificates
+    driver: local # Use the local volume driver
+
+services: 
+  traefik:
+    image: "traefik:v2.10.1"  #Specify the container image to use
+    container_name: "traefik" # Give the container a name
+    ports:
+      - "80:80" # Expose port 80 on the host and forward traffic to the container  71 
+      - "443:443" # Expose port 443 on the host and forward traffic to the container 401
+      - "8080:8080" # (Optional) Expose the Traefik Dashboard on port 8080, but don't do this in production! 8001
+    volumes:
+      - /etc/traefik:/etc/traefik # Mount the Traefik configuration directory as a volume
+      - traefik-ssl-certs:/ssl-certs # Mount the SSL certificate volume as a volume
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount the Docker socket as a read-only volume
+
+
+
+
+
+"traefik.http.routers.traefik.rule=Host(`traefik-dashboard.local.example.com`)"
+######################################################################################################################################################################################################
+## ATOPWEBTECH - TRAEFIK DOCKER COMPOSE ##  https://github.com/arizonal2014/traefik-as-a-reverse-proxy/tree/main/traefik-configurations
+######################################################################################################################################################################################################
+
+
+chmod 600 acme.json
+
+
+
+
+ :%d # VIM CLEAR ALL 
+
+
+
+web.slvr.site
+portainer.slvr.site
+
+
+
+
+ traefik.enable                            true
+ traefik.http.routers.nginix.entrypoint    websecure
+ traefik.http.routers.nginix.rule          Host( ' web.slvr.site ' )
+ traefik.http.routers.nginix.tls           true
+ traefik.http.routers.nginix.tls.certresolver
+
+
+
