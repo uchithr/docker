@@ -1,0 +1,137 @@
+
+# ADDING DOCKER REPOSITORY
+$ sudo dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+# PACKAHE UPDATE (optinal)
+$ sudo dnf update
+
+# PODMAN & BUILDAH RELOVE (optinal)
+$ yum erase podman buildah
+
+# INSTALL DOCKER & DEPENDENCIES  ## https://docs.docker.com/engine/install/rhel/#prerequisites
+$ sudo dnf install -y docker-ce docker-ce-cli containerd.io    
+# SEE DOCKER COMPOSE BELOW
+
+
+# PORTAINER
+docker run -d -p 8000:8000 -p 9000:9000 --name=portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce
+docker run -d -p 9092:8000 -v --restart=unless-stopped  /var/run/docker.sock:/var/run/docker.sock -v yacht:/config selfhostedpro/yacht
+
+# RANCHER
+docker run -d --restart=unless-stopped -p 80:80 -p  custom:default --privileged rancher/rancher:latest
+
+
+# SYSTEM STARTUP
+$ systemctl enable docker
+$ systemctl start docker
+$ systemctl status docker
+
+# CREATING A DOCKER GROUP
+$ groupadd docker_users
+
+# ASSINGN USER FOR DOCKER GROUP
+$ sudo usermod -aG docker samf
+
+# CHECK AVAILABE OR NOT
+$ id samf
+
+#LOG
+docker logs --tail 50 --follow --timestamps id
+
+# TEST DOCKER AVALABILITY
+$ docker run hello-world
+
+# SEARCH FOR IAMGES
+$ docker search apache
+
+# PULL UBUNTU DOCKER IMAGE
+$ docker pull ubuntu
+
+# ACCESS TO UBUNTU CONTAINER
+$ docker run -it ubuntu
+
+# STOP & START  CONTAINER
+$ docker stop or start id
+
+# LIST DOCKER IAMGES
+$ docker images
+
+# CURRENT RUNING CONTAINERS
+$ dokcer ps
+$ docer ps -a (-a for list previously usedones)
+
+# REMOVE DOCKER IAMGE
+$ docker rmi -f e91425f38618
+
+# REMOVE DOCKER CONTAINER
+$ docker rm -f e91425f38618
+
+# REMOVE UNUSED DOCKER CONTAINERS
+
+docker network ls
+docker network rm
+
+
+# REMOVE DOCKER IAMGES
+$ docker image prune
+$ docker image prune -a
+
+# FULL ID
+docker inspect --format="{{.Id}}" evil_swartz
+
+
+# DOCKER IMAGE INFORMATION
+$ docker image inspect 6dc0a5fbad51
+
+# AUTOMATICALLY REMOVE CONTAINER AFTER STOPEED
+$ docker run -p 3000:80 -d --rm e91425f38618
+
+# ATTACH DETACH
+$ docker run  -p 8000:80 -d e91425f38618
+$ docker run  -p 8000:80 -a e91425f38618
+
+# COPY TO DOCKER
+$ docker cp send_d/. e91425f38618:/recieve_d
+
+# DOCKER TO LOCAL
+$ docekr cp e91425f38618:/recieve_d send_d
+
+# RENAMING CONTAINER
+$ docker run -p 3000:80  -d --rm --name apache_http ad17c88403e2
+
+# RENAMING IMAGES
+$ docker build -t  goals:latest
+$ docker tag node-demo:latest hello-node:latest
+
+# RUN RENAMED CONTAINER WITH SPECIFIED NAME
+$ docker run -p 3000:80 -d --rm --name goalsapp goals:latest
+
+# BUILD DOCKER WITH CUSTOM NAME
+$ docker build -t csname:latest
+
+# PUSH DOCKER IAMGE
+$ docker push
+
+# BIND MOUNT
+$ docker run -d -p 3000:80 -v "/users/sam/devops/:app" feedback-node:volume
+add anonymous mount to avoid overwritten
+
+# DOCKER COMPOSE   ## https://github.com/docker/compose/releases
+$ dnf install -y curl
+$ curl -L "https://github.com/docker/compose/releases/download/2.17.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+$ chmod +x /usr/local/bin/docker-compose
+$ docker-compose --version
+
+# RUN CUSTOM CREATED YML 
+docker-compose  up -d
+
+"sudo curl -L ""https://github.com/docker/compose/releases/download/v2.11.2/docker-compose-$(uname -s)-$(uname -m)"" -o /usr/local/bin/docker-compose
+"
+
+
+docker-compose -f your-file.yml up
+
+
+
+docker exec -it <container_name_or_id> /bin/bash
+
